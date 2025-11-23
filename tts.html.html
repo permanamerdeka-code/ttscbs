@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TTS Cutting Sticker</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background:#f0f0f0;
+  margin:0; padding:20px;
+}
+
+header {
+  text-align:center;
+  font-size:14px;
+  font-weight:bold;
+  color:#0b3b6f;
+  margin-bottom:10px;
+  line-height:1.4;
+}
+
+h1 { text-align:center; margin-bottom:10px; }
+
+/* ===== CONTAINER ===== */
+#container {
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:20px;
+}
+
+/* ===== BOARD ===== */
+#board {
+  display:grid;
+  grid-template-columns:repeat(15, 30px);
+  grid-auto-rows:30px;
+  gap:2px;
+  background:#ddd;
+  padding:5px;
+}
+
+.cell-box {
+  position:relative;
+  width:30px;
+  height:30px;
+  background:white;
+  border:1px solid #bbb;
+}
+
+.black {
+  background:black;
+}
+
+.letter-input {
+  width:100%;
+  height:100%;
+  border:none;
+  text-align:center;
+  font-size:16px;
+  font-weight:bold;
+  text-transform:uppercase;
+  box-sizing:border-box;
+}
+
+.number {
+  position:absolute;
+  top:1px;
+  left:2px;
+  font-size:0.6em;
+  color:red;
+  font-weight:bold;
+}
+
+/* ===== CLUES ===== */
+#clues { max-width:260px; }
+#clues h3 { margin-bottom:5px; text-align:center; }
+#clues ul { padding-left:20px; }
+
+/* ===== STATUS ===== */
+#timer, #score, #reward, #promo {
+  text-align:center;
+  font-size:18px;
+  margin:10px 0;
+}
+
+.correct { background:#c8f7c5 !important; }
+.wrong { background:#f7c5c5 !important; }
+
+button {
+  padding:10px 20px;
+  font-size:16px;
+  margin-top:10px;
+  cursor:pointer;
+  display:block;
+  margin:auto;
+}
+
+#reward {
+  font-size:16px;
+  color:#d92b2b;
+  font-weight:bold;
+}
+
+#promo {
+  color:#0b3b6f;
+  font-weight:bold;
+}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  #board {
+    grid-template-columns:repeat(15, 22px);
+    grid-auto-rows:22px;
+  }
+  .letter-input { font-size:14px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+Powered by PT Cutting Sticker Indonesia - Cikampek Branding Style<br>
+Alamat: Jl Raya Interchange Cikampek - Dawuan<br>
+HP: 085161042807
+</header>
+
+<h1>Teka-Teki Silang Cutting Sticker</h1>
+<div id="timer">Waktu: 10:00</div>
+
+<div id="container">
+  <div id="clues">
+    <h3>Horizontal</h3>
+    <ul id="cluesH"></ul>
+    <h3>Vertikal</h3>
+    <ul id="cluesV"></ul>
+  </div>
+  <div id="board"></div>
+</div>
+
+<div>
+  <button onclick="checkAnswers()">Submit Jawaban</button>
+  <button onclick="resetBoard()">Reset</button>
+</div>
+
+<div id="score"></div>
+<div id="reward">Skor Tertinggi Dapat Hadiah Hiburan Pulsa 50Ribu</div>
+<div id="promo">Seberapa Pro Kah anda di bidang Cutting Sticker?</div>
+
+<div style="text-align:center; margin-top:10px;">
+  <button onclick="shareWhatsApp()">Jika TTS ini bermanfaat, bagikan via WhatsApp</button>
+</div>
+
+
+<script>
+// ===== SETUP =====
+const boardSize = 15;
+const boardEl = document.getElementById('board');
+let timerInterval;
+
+// ===== WORD DATA =====
+const words = [
+  {word:"CUTTER", row:0, col:0, dir:"H", clue:"Alat pemotong sticker"},
+  {word:"VINYL", row:2, col:0, dir:"H", clue:"Bahan utama sticker"},
+  {word:"COREL", row:4, col:0, dir:"H", clue:"Software desain"},
+  {word:"LAPTOP", row:6, col:0, dir:"H", clue:"Perangkat kerja portabel"},
+  {word:"SQUEEGEE", row:8, col:0, dir:"H", clue:"Alat menekan sticker"},
+  {word:"LAMINASI", row:10, col:0, dir:"H", clue:"Proses melindungi sticker"},
+  {word:"GLOSSY", row:12, col:0, dir:"H", clue:"Sticker mengkilap"},
+  {word:"VECTOR", row:0, col:8, dir:"H", clue:"File desain vektor"},
+  {word:"STICKER", row:3, col:4, dir:"H", clue:"Produk siap tempel"},
+  {word:"BRANDING", row:5, col:6, dir:"H", clue:"Produk promosi"},
+
+  {word:"PISAU", row:0, col:0, dir:"V", clue:"Alat tajam untuk detail"},
+  {word:"HEAT", row:0, col:2, dir:"V", clue:"Menggunakan panas"},
+  {word:"PRINT", row:0, col:4, dir:"V", clue:"Cetak sticker"},
+  {word:"ADOBE", row:2, col:6, dir:"V", clue:"Software desain grafis"},
+  {word:"MOCKUP", row:4, col:8, dir:"V", clue:"File cetak desain"},
+  {word:"PLOTTER", row:6, col:10, dir:"V", clue:"Mesin pemotong sticker"},
+  {word:"MATTE", row:8, col:12, dir:"V", clue:"Sticker buram"},
+  {word:"OUTDOOR", row:10, col:14, dir:"V", clue:"Sticker outdoor"},
+  {word:"PACKAGING", row:0, col:12, dir:"V", clue:"Sticker kemasan"},
+  {word:"EMBOSS", row:13, col:2, dir:"V", clue:"Teknik cetak timbul"}
+];
+
+// ===== TEMPLATE GRID =====
+const template = Array(boardSize).fill(0).map(()=>Array(boardSize).fill(0));
+for(let w of words){
+  for(let i=0;i<w.word.length;i++){
+    const r = w.row + (w.dir==="V" ? i : 0);
+    const c = w.col + (w.dir==="H" ? i : 0);
+    if(r<boardSize && c<boardSize) template[r][c] = 1;
+  }
+}
+
+// ===== NUMBERING =====
+let numberMap = {};
+let numCounter = 1;
+
+for(let w of words){
+  const key = `${w.row},${w.col}`;
+  if(!numberMap[key]){
+    numberMap[key] = numCounter++;
+  }
+}
+
+// ===== GENERATE BOARD =====
+function generateBoard(){
+  boardEl.innerHTML = "";
+
+  for(let r=0;r<boardSize;r++){
+    for(let c=0;c<boardSize;c++){
+      const box = document.createElement('div');
+      box.className = "cell-box";
+
+      if(template[r][c] === 0){
+        box.classList.add('black');
+      } else {
+        const input = document.createElement('input');
+        input.className = "letter-input";
+        input.maxLength = 1;
+        input.dataset.row = r;
+        input.dataset.col = c;
+
+        box.appendChild(input);
+
+        const key = `${r},${c}`;
+        if(numberMap[key]){
+          const num = document.createElement('div');
+          num.className = "number";
+          num.textContent = numberMap[key];
+          box.appendChild(num);
+        }
+      }
+
+      boardEl.appendChild(box);
+    }
+  }
+}
+
+// ===== CLUE LIST =====
+function generateClues(){
+  document.getElementById("cluesH").innerHTML = "";
+  document.getElementById("cluesV").innerHTML = "";
+
+  for(let w of words){
+    const num = numberMap[`${w.row},${w.col}`];
+    const li = document.createElement('li');
+    li.textContent = `${num}. ${w.clue}`;
+
+    if(w.dir === "H")
+      document.getElementById("cluesH").appendChild(li);
+    else
+      document.getElementById("cluesV").appendChild(li);
+  }
+}
+
+// ===== TIMER =====
+let timeLeft = 600;
+
+function startTimer(){
+  timerInterval = setInterval(()=>{
+    let min = Math.floor(timeLeft/60);
+    let sec = timeLeft % 60;
+
+    document.getElementById("timer").textContent =
+      `Waktu: ${min}:${sec<10?"0":""}${sec}`;
+
+    if(timeLeft-- <= 0){
+      clearInterval(timerInterval);
+      alert("Waktu habis!");
+      checkAnswers();
+    }
+  }, 1000);
+}
+
+// ===== CHECK ANSWERS =====
+function checkAnswers(){
+  let score = 0;
+
+  for(let w of words){
+    for(let i=0;i<w.word.length;i++){
+      const r = w.row + (w.dir==="V"?i:0);
+      const c = w.col + (w.dir==="H"?i:0);
+
+      const input = document.querySelector(
+        `input[data-row='${r}'][data-col='${c}']`
+      );
+
+      if(input){
+        if(input.value.toUpperCase() === w.word[i]){
+          input.classList.add('correct');
+          input.classList.remove('wrong');
+          score += 10;
+        } else {
+          input.classList.add('wrong');
+          input.classList.remove('correct');
+        }
+      }
+    }
+  }
+
+  document.getElementById("score").textContent =
+    `Skor kamu: ${score} poin`;
+
+  clearInterval(timerInterval);
+}
+
+// ===== RESET =====
+function resetBoard(){
+  generateBoard();
+  generateClues();
+  clearInterval(timerInterval);
+  timeLeft = 600;
+  document.getElementById("score").textContent = "";
+  startTimer();
+}
+
+// ===== SHARE WA =====
+function shareWhatsApp(){
+  const text = encodeURIComponent(
+    "Coba TTS Cutting Sticker ini! Seberapa Pro Kah anda? Ada hadiah pulsa tiap minggu. Link: https://permanamerdeka-code.github.io/ttscbs/"
+  );
+  window.open(`https://api.whatsapp.com/send?text=${text}`,"_blank");
+}
+
+// INIT
+generateBoard();
+generateClues();
+startTimer();
+</script>
+
+</body>
+</html>
